@@ -65,6 +65,8 @@ colors ={
     '-':(200,200,100)
 }
 
+# ランダムのシードを固定したい
+random.seed(0)
 
 # ランダムカラーを生成する関数
 def generate_random_color():
@@ -85,6 +87,7 @@ class App(tk.Frame):
     def __init__(self,master = None):
         super().__init__(master)
         self.workers = None
+        self.current_id = -1
         self.image_frame = tk.Frame(self.master)
         self.slider_frame = tk.Frame(self.master)
         self.button_frame = tk.Frame(self.master)
@@ -105,6 +108,10 @@ class App(tk.Frame):
         self.csv_button = tk.Button(self.button_frame, text="Open JSON", command=self.openJSON, width=40)
         self.csv_button.pack(expand = True, fill = tk.X, padx=10, pady=10)
 
+        self.save_button = tk.Button(self.button_frame, text="Save JSON", command=self.save_json)
+        self.save_button.pack(expand = True, padx=10, pady=10)
+
+
         self.frame_num = tk.Label(self.button_frame,text="<-Frame:_")
         self.frame_num.pack(expand=True, fill= tk.X, padx = 10, pady = 10)
 
@@ -120,8 +127,12 @@ class App(tk.Frame):
         self.num.insert(tk.END,"0")  
         self.num.pack(padx=10,pady=10)
 #        self.num.place(x=820, y=70)
+        self.back_button = tk.Button(self.button_frame, text="Back", command=self.back, width=40)
+        self.back_button.pack(expand = True, fill = tk.X, padx=10, pady=10)
+
         self.go_button = tk.Button(self.button_frame, text="Next", command=self.next, width=40)
         self.go_button.pack(expand = True, fill = tk.X, padx=10, pady=10)
+
 
         self.image_frame.grid(column=0, rowspan=2)
         self.button_frame.grid(column=1, row=1)
@@ -142,7 +153,7 @@ class App(tk.Frame):
     def check_id(self,event):
         x = int(event.x / cscale)
         y = int(event.y / cscale)
-        print("Click",x,y)
+#        print("Click",x,y)
         if self.workers is not None:
             frameData = self.workers[self.frameVar.get()]
             for w in frameData['tracks']:
@@ -155,12 +166,28 @@ class App(tk.Frame):
                     print(w['track_id'],x0,y0,"-",xx,yy)
                     self.id_box.delete(0,tk.END)
                     self.id_box.insert(tk.END,str(w['track_id']))
+                    self.current_id = w['track_id']
                     break
 
 # set id 対応
     def set_id(self):
-        pass
+        if self.current_id >= 0:
+            new_id = int(self.id_box.get())
+            # すべての current_id を new_id に変更する
+            for frame in self.workers:
+                for track in frame['tracks']:
+                    if track['track_id'] == self.current_id:
+                        track['track_id'] = new_id
+            self.current_id = -1
 
+# save_json 対応
+    def save_json(self):
+        path = filedialog.asksaveasfilename(defaultextension=".json",filetypes=[("JSON","*.json")],title="Save JSON file")
+        print(path)
+        if len(path)>0:
+            with open(path, 'w') as file:
+                json.dump(self.workers,file)
+                print("Saved",path)
     
 # slider 対応
     def scroll(self, event):
@@ -192,6 +219,13 @@ class App(tk.Frame):
             df = read_timestamp(path)
             check_timestamp(df)
 
+    def back(self):
+        frame = int(self.num.get())-2
+        if frame <0:
+            frame = 0
+        self.num.delete(0,tk.END)  
+        self.num.insert(tk.END,str(frame))          
+        self.next()
 
     def next(self):
         global app

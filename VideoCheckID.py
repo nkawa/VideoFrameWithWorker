@@ -92,6 +92,10 @@ cscale = 1.2
 cw = int(1280*cscale)
 ch = int(742*cscale)
 
+# 拡大表示のサイズ
+kw = 300
+kh = 300
+
 def change_size(event):
         w = app.canvas.winfo_width()
         h = app.canvas.winfo_height()
@@ -111,6 +115,20 @@ class App(tk.Frame):
 #        self.canvas.bind('<Button-1>', self.canvas_click)
         self.canvas.pack(expand = True, fill = tk.BOTH, anchor=tk.CENTER, padx=10)
 
+        self.kakudai = tk.Canvas(self.button_frame, width = kw, height = kh)
+#        self.kakudai.delete("all")
+        self.kakudai.pack(expand = True, fill=tk.X, anchor=tk.CENTER,padx=2,pady=2)
+        self.kakudai.create_rectangle(0, 0, kw, kh, fill="black", outline="")
+
+
+        self.csv_file = tk.Label(self.button_frame, text = "JSON: Not set")
+        self.csv_file.pack(expand = True, padx=10, pady=10)
+
+        self.csv_button = tk.Button(self.button_frame, text="Open JSON", command=self.openJSON, width=40)
+        self.csv_button.pack(expand = True, fill = tk.X, padx=10, pady=10)
+
+
+# IDを登録する仕組み！
         self.id_box = tk.Label(self.button_sub,text="ID:  0       Subj:  ")
         self.id_box.pack(side=tk.LEFT,padx=0,pady=10)
         self.subj_box = tk.Entry(self.button_sub,width=15)
@@ -120,11 +138,10 @@ class App(tk.Frame):
         self.id_button = tk.Button(self.button_frame,text="Set", command=self.set_id,width=10)
         self.id_button.pack(padx=10,pady=10)
 
-        self.csv_file = tk.Label(self.button_frame, text = "JSON: Not set")
-        self.csv_file.pack(expand = True, padx=10, pady=10)
+        self.cid_button = tk.Button(self.button_frame,text="Change From Here", command=self.change_from,width=15)
+        self.cid_button.pack(padx=10,pady=10)
 
-        self.csv_button = tk.Button(self.button_frame, text="Open JSON", command=self.openJSON, width=40)
-        self.csv_button.pack(expand = True, fill = tk.X, padx=10, pady=10)
+
 
         self.save_button = tk.Button(self.button_frame, text="Save JSON", command=self.save_json)
         self.save_button.pack(expand = True, padx=10, pady=10)
@@ -139,7 +156,15 @@ class App(tk.Frame):
                                variable=self.frameVar,
                                command=self.scroll,
                                from_=0, to=17999,length=1400, orient=HORIZONTAL)
-        self.slider.pack(expand = True, fill = tk.X, padx=10, pady=10)
+        self.slider.pack(side=tk.LEFT,expand = True, fill = tk.X, padx=10, pady=10)
+        self.splus1 = tk.Button(self.slider_frame, text="1", width=15,command=self.speedOne)
+        self.splus1.pack(side=tk.LEFT, padx=10 )
+        self.splus5 = tk.Button(self.slider_frame, text="5",  width=15,command=self.speed5)
+        self.splus5.pack(side=tk.LEFT, padx=10 )
+#        self.splus20 = tk.Button(self.slider_frame, text="20", command=self.speed20)
+#        self.splus20.pack(side=tk.LEFT)
+        self.splusF = tk.Button(self.slider_frame, text="F",  width=15,command=self.speedF)
+        self.splusF.pack(side=tk.LEFT, padx=10 )
 
         self.num = tk.Entry(self.button_frame,width=10)
         self.num.insert(tk.END,"0")  
@@ -166,12 +191,69 @@ class App(tk.Frame):
 
         self.master.bind('<Configure>', change_size)
 
+    def speedOne(self):
+        st = self.frameVar.get()-400
+        if st < 0:
+            st = 0
+        ed = st+1400
+        if ed > 17999:
+            ed = 17999
+        self.slider.config(from_ = st,to = ed)
+
+    def speed5(self):
+        st = self.frameVar.get()-400*5
+        if st < 0:
+            st = 0
+        ed = st+1400*5
+        if ed > 17999:
+            ed = 17999
+        self.slider.config(from_ = st,to = ed)
+
+    def speedF(self):
+        st = 0
+        ed = 17999
+        self.slider.config(from_ = st,to = ed)
+
+
+    def show_kakudai(self):
+        #self.current_id から 拡大イメージの表示
+        if self.current_id < 0:
+            return
+        frameData = self.workers[self.frameVar.get()]
+        for w in frameData['tracks']:
+            if w['track_id'] == self.current_id:
+                x0,y0,width,height = w['bbox']
+                xx = int((x0- BASE_X)*SCALE)
+                yy = int((y0- BASE_Y)*SCALE)
+                width *= SCALE
+                height *= SCALE        
+
+                boximage = self.base_image[yy-10:yy+int(height)+10, xx-10:xx+int(width)+10]
+
+                aspect = boximage.shape[1] / boximage.shape[0]
+                if aspect > kw/kh :
+                    boximage = cv2.resize(boximage,dsize=(kw,int(kw/aspect)))
+                else:
+                    boximage = cv2.resize(boximage,dsize=(int(kh*aspect),kh))
+
+                pil3_image = Image.fromarray(boximage)
+                # ガベージコレクションされないようにすべきだった！！！！！
+                self.photo_image = ImageTk.PhotoImage(pil3_image)
+                    
+                self.kakudai.delete("all")
+                self.kakudai.create_image(
+                        int(kw/2),int(kh/2),
+                        anchor=tk.CENTER,
+                        image=self.photo_image  # 表示画像データ
+                )
+
+
 
 # check_id
     def check_id(self,event):
         x = int(event.x / cscale)
         y = int(event.y / cscale)
-        print("Click",x,y)
+#        print("Click",x,y)
         if self.workers is not None:
             frameData = self.workers[self.frameVar.get()]
             for w in frameData['tracks']:
@@ -181,9 +263,20 @@ class App(tk.Frame):
                 width *= SCALE
                 height *= SCALE
                 if xx < x and x < xx+width and yy < y and y < yy+height:
-                    print(w['track_id'],x0,y0,"-",xx,yy)
+#                    print(w['track_id'],x0,y0,"-",xx,yy)
                     self.id_box["text"]="ID: "+str(w['track_id'])+"      Subj: "
                     self.current_id = w['track_id']
+                    self.show_kakudai()
+
+#                    print("Show image",photo_image,pil_image.size)
+#                    popup = tk.Toplevel(self.master)
+#                    popup.title("Track ID:"+str(w['track_id']))
+#                    popup.geometry("400x400")
+#                    label = tk.Label(popup, image=photo_image)
+#                    label.pack()
+
+
+
                     if 'subj_id' in w :
                         self.subj_box.delete(0,tk.END)
                         self.subj_box.insert(tk.END,w['subj_id'])
@@ -202,6 +295,24 @@ class App(tk.Frame):
                     if track['track_id'] == self.current_id:
                         track['subj_id'] = subj_id
             self.current_id = -1
+            self.id_box["text"] = -1
+            self.subj_box.delete(0,tk.END)
+
+
+# ある場所からID変更 対応
+    def change_from(self):
+        if self.current_id >= 0:
+            subj_id = self.subj_box.get()
+            # 現在の track　以降のcurrent_id に subj_id に変更する
+            currentFrame = self.frameVar.get()
+            for frame in self.workers:
+                if frame['frame_id'] >= currentFrame:
+                    for track in frame['tracks']:
+                        if track['track_id'] == self.current_id:
+                            track['subj_id'] = subj_id
+            self.current_id = -1
+            self.id_box["text"] = -1
+            self.subj_box.delete(0,tk.END)
 
 # save_json 対応
     def save_json(self):
@@ -271,6 +382,7 @@ class App(tk.Frame):
 #            print("Capture failed for",self.cap)
             return
         base_image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        self.base_image = base_image.copy()
               
 #        cv_image = cv2.cvtColor(dst, cv2.COLOR_BGR2RGB)
         ## ここで、他のデータも重ねて書く！
@@ -312,11 +424,15 @@ class App(tk.Frame):
                 int(ch/2),                   
                 image=self.pimg  # 表示画像データ
                 )
+        
+        self.show_kakudai()
+    
 #        print("Show image",tf)        
 
     
 if __name__ == "__main__":
     root = tk.Tk()
+    root.title("Video TrackCheker 2024-10-03") 
     app = App(master=root)
     app.cap = cv2.VideoCapture(sys.argv[1])
     app.frame =0

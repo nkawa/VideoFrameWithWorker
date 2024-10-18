@@ -107,8 +107,9 @@ class App(tk.Frame):
         self.workers = None
         self.current_id = -1
         self.image_frame = tk.Frame(self.master)
-        self.slider_frame = tk.Frame(self.master)
         self.button_frame = tk.Frame(self.master)
+        self.track_info_frame = tk.Frame(self.master)
+        self.slider_frame = tk.Frame(self.track_info_frame)
         self.button_sub = tk.Frame(self.button_frame)
 
         self.canvas = tk.Canvas(self.image_frame, width = cw, height = ch)
@@ -141,6 +142,11 @@ class App(tk.Frame):
         self.cid_button = tk.Button(self.button_frame,text="Change From Here", command=self.change_from,width=15)
         self.cid_button.pack(padx=10,pady=10)
 
+        self.sid_button = tk.Button(self.button_frame,text="Search TrackID", command=self.search_trackid,width=15)
+        self.sid_button.pack(padx=10,pady=10)
+
+        self.cinfo_button = tk.Button(self.button_frame,text="Clear TrackInfo", command=self.clear_track_info,width=15)
+        self.cinfo_button.pack(padx=10,pady=10)
 
 
         self.save_button = tk.Button(self.button_frame, text="Save JSON", command=self.save_json)
@@ -152,19 +158,30 @@ class App(tk.Frame):
 
         self.frameVar = tk.IntVar()
 
+        self.track_info = tk.Canvas(self.track_info_frame, width = 1400, height = 10)
+        self.track_info.pack(expand = True, fill = tk.X, anchor=tk.CENTER, padx=10,pady=0)
+        self.track_info.create_rectangle(0, 0, 1400, 10, fill="black", outline="")
+
         self.slider = tk.Scale(self.slider_frame, 
                                variable=self.frameVar,
                                command=self.scroll,
                                from_=0, to=17999,length=1400, orient=HORIZONTAL)
-        self.slider.pack(side=tk.LEFT,expand = True, fill = tk.X, padx=10, pady=10)
-        self.splus1 = tk.Button(self.slider_frame, text="1", width=15,command=self.speedOne)
+        self.ssd = 0
+        self.sed = 17999
+        self.scl = int(90/7)
+        self.slider.pack(side=tk.LEFT,expand = True, fill = tk.X, padx=10, pady=0)
+        self.splus1 = tk.Button(self.slider_frame, text="1", width=10,command=self.speedOne)
         self.splus1.pack(side=tk.LEFT, padx=10 )
-        self.splus5 = tk.Button(self.slider_frame, text="5",  width=15,command=self.speed5)
+        self.splus5 = tk.Button(self.slider_frame, text="5",  width=10,command=self.speed5)
         self.splus5.pack(side=tk.LEFT, padx=10 )
 #        self.splus20 = tk.Button(self.slider_frame, text="20", command=self.speed20)
 #        self.splus20.pack(side=tk.LEFT)
-        self.splusF = tk.Button(self.slider_frame, text="F",  width=15,command=self.speedF)
+        self.splusF = tk.Button(self.slider_frame, text="F",  width=10,command=self.speedF)
         self.splusF.pack(side=tk.LEFT, padx=10 )
+
+
+        self.slider_frame.pack(expand = True, fill = tk.X,pady=0)
+
 
         self.num = tk.Entry(self.button_frame,width=10)
         self.num.insert(tk.END,"0")  
@@ -179,7 +196,8 @@ class App(tk.Frame):
 
         self.image_frame.grid(column=0, rowspan=2)
         self.button_frame.grid(column=1, row=1)
-        self.slider_frame.grid(column=0,row=2, columnspan=2)
+        self.track_info_frame.grid(column=0,row=2, columnspan=2)
+#        self.slider_frame.grid(column=0,row=2, columnspan=2)
 
         self.master.grid_rowconfigure(0, weight=1)
         self.master.grid_rowconfigure(1, weight=1)
@@ -198,6 +216,9 @@ class App(tk.Frame):
         ed = st+1400
         if ed > 17999:
             ed = 17999
+        self.ssd = st
+        self.sed = ed
+        self.scl = 1
         self.slider.config(from_ = st,to = ed)
 
     def speed5(self):
@@ -207,12 +228,40 @@ class App(tk.Frame):
         ed = st+1400*5
         if ed > 17999:
             ed = 17999
+        self.ssd = st
+        self.sed = ed
+        self.scl = 5
         self.slider.config(from_ = st,to = ed)
 
     def speedF(self):
         st = 0
         ed = 17999
+        self.ssd = st
+        self.sed = ed
+        self.scl = int(90/7)
         self.slider.config(from_ = st,to = ed)
+
+
+    # 現在得られているTrack ID を track_info に表示する
+    def search_trackid(self):
+        if self.current_id < 0:
+            return
+        for frame in self.workers:
+            for track in frame['tracks']:
+                if track['track_id'] == self.current_id:
+                    fid = frame['frame_id']
+                    r,g,b = self.track_colors[self.current_id]
+                    color = f"#{r:02x}{g:02x}{b:02x}"
+                    x = int((fid- self.ssd)/self.scl )
+                    if x < 0: 
+                        continue
+                    if x > self.sed:
+                        break
+                    self.track_info.create_line(x, 0, x, 10,fill=color)
+
+    def clear_track_info(self):
+        self.track_info.delete("all")
+        self.track_info.create_rectangle(0, 0, 1400, 10, fill="black", outline="")
 
 
     def show_kakudai(self):

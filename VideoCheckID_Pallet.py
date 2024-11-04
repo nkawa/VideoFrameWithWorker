@@ -280,8 +280,6 @@ class App(tk.Frame):
         self.scl = int(90/7)
         self.slider.config(from_ = st,to = ed)
 
-    def set_pallet_id(self):
-        pass
 
 
     def current_tracks(self):
@@ -454,6 +452,21 @@ class App(tk.Frame):
             self.id_box["text"] = -1
             self.subj_box.delete(0,tk.END)
 
+# pallet_id 対応
+    def set_pallet_id(self):
+        if self.pallet_id >= 0:
+            
+            subj_id = self.pallet_id_box.get()
+            # すべての current_id を new_id に変更する
+            for frame in self.workers:
+                for track in frame['tracks']:
+                    if track['track_id'] == self.pallet_id:
+                        track['subj_id'] = subj_id
+            self.pallet_id = -1
+            self.pallet_id_label["text"] = "PID: -1"
+            self.pallet_id_box.delete(0,tk.END)
+        pass
+
 
 # ある場所からID変更 対応
     def change_from(self):
@@ -555,6 +568,7 @@ class App(tk.Frame):
         if not tf:
 #            print("Capture failed for",self.cap)
             return
+        
         base_image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.base_image = base_image.copy()
               
@@ -594,9 +608,9 @@ class App(tk.Frame):
                         height *= SCALE
                         color = self.ptrack_colors[w['track_id']]
 
-                        label_text = "P"+str(w['track_id'])
-                        if 'pal_id' in w:
-                            label_text += ":"+w['pal_id']
+                        label_text = "p"+str(w['track_id'])
+                        if 'subj_id' in w:
+                            label_text += ":"+w['subj_id']
                         label_len = len(label_text)
 
                         cv2.putText(base_image, text=label_text,org=(xx,yy-3*label_len),   

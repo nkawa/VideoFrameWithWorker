@@ -19,7 +19,7 @@ def load_json_file(file):
     for frame in workers:
         if frame['frame_id'] % 2 != 0:
             continue
-        frame['frame_id']=2+frame['frame_id']//2 # 1フレームずらしてみる?       
+        frame['frame_id']=frame['frame_id']//2 # 1フレームずらしてみる?       
         new_frame.append(frame)
 
     return new_frame
